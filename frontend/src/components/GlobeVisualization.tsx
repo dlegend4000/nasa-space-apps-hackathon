@@ -1,21 +1,15 @@
 "use client";
 
-import { useRef, useMemo } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Sphere, Line } from '@react-three/drei';
+import { useRef, useEffect } from 'react';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { OrbitControls, Sphere } from '@react-three/drei';
 import * as THREE from 'three';
+import { SatelliteData } from '@/lib/satellite-data';
 
-interface Satellite {
-  id: string;
-  name: string;
-  position: [number, number, number];
-  orbit: THREE.Vector3[];
-  coverage: number;
-  type: string;
-}
 
 interface GlobeVisualizationProps {
-  satellites?: Satellite[];
+  satellites?: SatelliteData[];
+  selectedSatellite?: SatelliteData | null;
   className?: string;
 }
 
@@ -41,8 +35,62 @@ function Earth() {
   );
 }
 
+// Camera controller for focusing on satellites
+function CameraController({ selectedSatellite }: { selectedSatellite?: SatelliteData | null }) {
+  const { camera } = useThree();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const controlsRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (selectedSatellite && selectedSatellite.position && controlsRef.current) {
+      const { latitude, longitude, altitude } = selectedSatellite.position;
+      
+      // Convert lat/lon/alt to 3D position
+      const phi = (90 - latitude) * (Math.PI / 180);
+      const theta = (longitude + 180) * (Math.PI / 180);
+      const radius = 1 + (altitude / 1000) * 0.1; // Scale altitude
+      
+      const x = radius * Math.sin(phi) * Math.cos(theta);
+      const y = radius * Math.cos(phi);
+      const z = radius * Math.sin(phi) * Math.sin(theta);
+      
+      const targetPosition = new THREE.Vector3(x, y, z);
+      const cameraPosition = new THREE.Vector3(
+        x * 1.5,
+        y * 1.5,
+        z * 1.5
+      );
+      
+      // Animate camera to focus on satellite
+      const startPosition = camera.position.clone();
+      const startTarget = controlsRef.current.target.clone();
+      
+      const duration = 2000; // 2 seconds
+      const startTime = Date.now();
+      
+      const animate = () => {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const easeProgress = 1 - Math.pow(1 - progress, 3); // Ease out cubic
+        
+        camera.position.lerpVectors(startPosition, cameraPosition, easeProgress);
+        controlsRef.current.target.lerpVectors(startTarget, targetPosition, easeProgress);
+        controlsRef.current.update();
+        
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+        }
+      };
+      
+      animate();
+    }
+  }, [selectedSatellite, camera]);
+
+  return <OrbitControls ref={controlsRef} enablePan={true} enableZoom={true} enableRotate={true} minDistance={2} maxDistance={8} />;
+}
+
 // Satellite component
-function SatelliteDot({ position, type, coverage }: { position: [number, number, number], type: string, coverage: number }) {
+function SatelliteDot({ satellite, isSelected }: { satellite: SatelliteData, isSelected: boolean }) {
   const meshRef = useRef<THREE.Mesh>(null);
   
   useFrame((state) => {
@@ -53,27 +101,51 @@ function SatelliteDot({ position, type, coverage }: { position: [number, number,
 
   const getColor = (type: string) => {
     switch (type) {
-      case 'imaging': return '#3b82f6';
-      case 'communication': return '#10b981';
-      case 'navigation': return '#f59e0b';
-      case 'weather': return '#ef4444';
+      case 'Earth Imaging': return '#3b82f6';
+      case 'Atmospheric Monitoring': return '#10b981';
+      case 'Weather Monitoring': return '#f59e0b';
+      case 'Environmental Monitoring': return '#ef4444';
       default: return '#8b5cf6';
     }
   };
 
+  // Convert lat/lon/alt to 3D position
+  const getPosition = () => {
+    if (satellite.position) {
+      const { latitude, longitude, altitude } = satellite.position;
+      const phi = (90 - latitude) * (Math.PI / 180);
+      const theta = (longitude + 180) * (Math.PI / 180);
+      const radius = 1 + (altitude / 1000) * 0.1;
+      
+      return [
+        radius * Math.sin(phi) * Math.cos(theta),
+        radius * Math.cos(phi),
+        radius * Math.sin(phi) * Math.sin(theta)
+      ] as [number, number, number];
+    }
+    
+    // Fallback to mock position
+    return [1.2, 0.5, 0.8] as [number, number, number];
+  };
+
+  const position = getPosition();
+  const size = isSelected ? 0.04 : 0.02;
+
   return (
     <group position={position}>
       <mesh ref={meshRef}>
-        <sphereGeometry args={[0.02, 8, 8]} />
-        <meshBasicMaterial color={getColor(type)} />
+        <sphereGeometry args={[size, 8, 8]} />
+        <meshBasicMaterial 
+          color={getColor(satellite.type)} 
+        />
       </mesh>
       {/* Coverage area */}
       <mesh>
-        <sphereGeometry args={[coverage * 0.3, 16, 16]} />
+        <sphereGeometry args={[0.3, 16, 16]} />
         <meshBasicMaterial
-          color={getColor(type)}
+          color={getColor(satellite.type)}
           transparent
-          opacity={0.1}
+          opacity={isSelected ? 0.2 : 0.1}
           wireframe
         />
       </mesh>
@@ -81,26 +153,9 @@ function SatelliteDot({ position, type, coverage }: { position: [number, number,
   );
 }
 
-// Orbit path component
-function OrbitPath({ points }: { points: THREE.Vector3[] }) {
-  const curvePoints = useMemo(() => {
-    const curve = new THREE.CatmullRomCurve3(points);
-    return curve.getPoints(100);
-  }, [points]);
-
-  return (
-    <Line
-      points={curvePoints}
-      color="#3b82f6"
-      opacity={0.3}
-      transparent
-      lineWidth={1}
-    />
-  );
-}
 
 // Main globe scene
-function GlobeScene({ satellites }: { satellites: Satellite[] }) {
+function GlobeScene({ satellites, selectedSatellite }: { satellites: SatelliteData[], selectedSatellite?: SatelliteData | null }) {
   return (
     <>
       <ambientLight intensity={0.4} />
@@ -108,112 +163,25 @@ function GlobeScene({ satellites }: { satellites: Satellite[] }) {
       <Earth />
       
       {satellites.map((satellite) => (
-        <group key={satellite.id}>
-          <SatelliteDot
-            position={satellite.position}
-            type={satellite.type}
-            coverage={satellite.coverage}
-          />
-          <OrbitPath points={satellite.orbit} />
-        </group>
+        <SatelliteDot
+          key={satellite.id}
+          satellite={satellite}
+          isSelected={selectedSatellite?.id === satellite.id}
+        />
       ))}
     </>
   );
 }
 
-export default function GlobeVisualization({ satellites = [], className = "" }: GlobeVisualizationProps) {
-  // Mock satellite data if none provided
-  const defaultSatellites: Satellite[] = useMemo(() => [
-    {
-      id: '1',
-      name: 'Landsat-9',
-      position: [1.2, 0.5, 0.8] as [number, number, number],
-      orbit: [
-        new THREE.Vector3(1.2, 0.5, 0.8),
-        new THREE.Vector3(1.1, 0.7, 0.6),
-        new THREE.Vector3(0.9, 0.8, 0.4),
-        new THREE.Vector3(0.6, 0.7, 0.2),
-        new THREE.Vector3(0.4, 0.5, 0.1),
-        new THREE.Vector3(0.5, 0.3, 0.3),
-        new THREE.Vector3(0.8, 0.2, 0.5),
-        new THREE.Vector3(1.0, 0.3, 0.7),
-        new THREE.Vector3(1.2, 0.5, 0.8),
-      ],
-      coverage: 0.4,
-      type: 'imaging'
-    },
-    {
-      id: '2',
-      name: 'Starlink-1234',
-      position: [0.8, -0.3, 1.1] as [number, number, number],
-      orbit: [
-        new THREE.Vector3(0.8, -0.3, 1.1),
-        new THREE.Vector3(0.6, -0.1, 1.0),
-        new THREE.Vector3(0.3, 0.1, 0.8),
-        new THREE.Vector3(0.1, 0.2, 0.5),
-        new THREE.Vector3(0.2, 0.1, 0.2),
-        new THREE.Vector3(0.5, -0.1, 0.1),
-        new THREE.Vector3(0.8, -0.2, 0.3),
-        new THREE.Vector3(0.9, -0.3, 0.6),
-        new THREE.Vector3(0.8, -0.3, 1.1),
-      ],
-      coverage: 0.6,
-      type: 'communication'
-    },
-    {
-      id: '3',
-      name: 'GPS-III',
-      position: [-0.5, 1.0, 0.3] as [number, number, number],
-      orbit: [
-        new THREE.Vector3(-0.5, 1.0, 0.3),
-        new THREE.Vector3(-0.3, 0.8, 0.5),
-        new THREE.Vector3(-0.1, 0.5, 0.6),
-        new THREE.Vector3(0.1, 0.2, 0.5),
-        new THREE.Vector3(0.2, -0.1, 0.3),
-        new THREE.Vector3(0.1, -0.3, 0.1),
-        new THREE.Vector3(-0.1, -0.4, -0.1),
-        new THREE.Vector3(-0.3, -0.2, 0.1),
-        new THREE.Vector3(-0.5, 1.0, 0.3),
-      ],
-      coverage: 0.8,
-      type: 'navigation'
-    },
-    {
-      id: '4',
-      name: 'GOES-18',
-      position: [0.2, -0.8, 0.9] as [number, number, number],
-      orbit: [
-        new THREE.Vector3(0.2, -0.8, 0.9),
-        new THREE.Vector3(0.4, -0.6, 0.7),
-        new THREE.Vector3(0.5, -0.3, 0.4),
-        new THREE.Vector3(0.4, 0.0, 0.1),
-        new THREE.Vector3(0.2, 0.2, -0.1),
-        new THREE.Vector3(-0.1, 0.3, -0.2),
-        new THREE.Vector3(-0.3, 0.1, 0.0),
-        new THREE.Vector3(-0.2, -0.2, 0.3),
-        new THREE.Vector3(0.2, -0.8, 0.9),
-      ],
-      coverage: 0.5,
-      type: 'weather'
-    }
-  ], []);
-
-  const displaySatellites = satellites.length > 0 ? satellites : defaultSatellites;
-
+export default function GlobeVisualization({ satellites = [], selectedSatellite, className = "" }: GlobeVisualizationProps) {
   return (
     <div className={`w-full h-full ${className}`}>
       <Canvas
         camera={{ position: [3, 3, 3], fov: 60 }}
         style={{ background: 'transparent' }}
       >
-        <OrbitControls
-          enablePan={true}
-          enableZoom={true}
-          enableRotate={true}
-          minDistance={2}
-          maxDistance={8}
-        />
-        <GlobeScene satellites={displaySatellites} />
+        <CameraController selectedSatellite={selectedSatellite} />
+        <GlobeScene satellites={satellites} selectedSatellite={selectedSatellite} />
       </Canvas>
     </div>
   );

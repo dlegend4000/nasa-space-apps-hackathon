@@ -1,9 +1,64 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Satellite, Globe, Zap, Shield } from "lucide-react";
+import { Satellite, MapPin, Clock, Zap, Globe, Eye, EyeOff, ExternalLink } from "lucide-react";
+import GlobeVisualization from "@/components/GlobeVisualization";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { NASA_SATELLITES, getSatellitesWithPositions, SatelliteData } from "@/lib/satellite-data";
+
 
 export default function Home() {
+  const [selectedSatellite, setSelectedSatellite] = useState<SatelliteData | null>(null);
+  const [satellites, setSatellites] = useState<SatelliteData[]>(NASA_SATELLITES);
+  const [showOrbits, setShowOrbits] = useState(true);
+  const [showCoverage, setShowCoverage] = useState(true);
+  const [loading, setLoading] = useState(false);
+
+  // Load real-time satellite positions
+  useEffect(() => {
+    const loadSatellitePositions = async () => {
+      setLoading(true);
+      try {
+        const satellitesWithPositions = await getSatellitesWithPositions();
+        setSatellites(satellitesWithPositions);
+      } catch (error) {
+        console.error('Error loading satellite positions:', error);
+        // Fallback to static data
+        setSatellites(NASA_SATELLITES);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSatellitePositions();
+    
+    // Update positions every 5 minutes
+    const interval = setInterval(loadSatellitePositions, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'active': return 'bg-green-500';
+      case 'maintenance': return 'bg-yellow-500';
+      case 'offline': return 'bg-red-500';
+      default: return 'bg-gray-500';
+    }
+  };
+
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case 'Earth Imaging': return 'text-blue-400';
+      case 'Communication': return 'text-green-400';
+      case 'Navigation': return 'text-yellow-400';
+      case 'Weather': return 'text-red-400';
+      default: return 'text-purple-400';
+    }
+  };
+
   return (
     <div className="min-h-screen quicksat-gradient">
       {/* Header */}
@@ -16,12 +71,10 @@ export default function Home() {
             <span className="text-xl font-semibold">QuickSat</span>
           </div>
           <nav className="hidden md:flex items-center space-x-8">
-            <a href="/catalog" className="text-muted-foreground hover:text-foreground transition-colors">Catalog</a>
-            <a href="/configure" className="text-muted-foreground hover:text-foreground transition-colors">Configure</a>
-            <a href="/globe" className="text-muted-foreground hover:text-foreground transition-colors">Globe</a>
-            <a href="/dashboard" className="text-muted-foreground hover:text-foreground transition-colors">Dashboard</a>
+            {/* Navigation removed - single page app */}
           </nav>
           <div className="flex items-center space-x-4">
+            <ThemeToggle />
             <Button variant="ghost" className="text-muted-foreground hover:text-foreground">
               Log in
             </Button>
@@ -32,223 +85,224 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Hero Section */}
-      <section className="container mx-auto px-4 py-20">
-        <div className="text-center max-w-4xl mx-auto">
-          <h1 className="text-5xl font-bold mb-6">
-            Rent satellite capabilities, not satellites
-          </h1>
-          <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-            QuickSat is a purpose-built platform for satellite capability renting. 
-            Lease specific resources like imaging minutes, data downlink capacity, 
-            and compute cycles without owning entire spacecraft.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" className="linear-style-button" asChild>
-              <a href="/configure">Start Building</a>
-            </Button>
-            <Button size="lg" variant="outline" className="border-border/50" asChild>
-              <a href="/catalog">View Catalog</a>
-            </Button>
-          </div>
-        </div>
-      </section>
-
-      {/* Features Grid */}
-      <section className="container mx-auto px-4 py-16">
-        <div className="grid md:grid-cols-3 gap-8">
-          <Card className="linear-style-card">
-            <CardHeader>
-              <div className="w-12 h-12 bg-chart-1/20 rounded-lg flex items-center justify-center mb-4">
-                <Globe className="w-6 h-6 text-chart-1" />
-              </div>
-              <CardTitle>3D Globe Visualization</CardTitle>
-              <CardDescription>
-                Real-time satellite orbits and coverage footprints powered by TLE data
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ul className="text-sm text-muted-foreground space-y-2">
-                <li>• Live satellite tracking</li>
-                <li>• Coverage area visualization</li>
-                <li>• Orbit prediction</li>
-                <li>• Interactive 3D globe</li>
-              </ul>
-            </CardContent>
-          </Card>
-
-          <Card className="linear-style-card">
-            <CardHeader>
-              <div className="w-12 h-12 bg-chart-2/20 rounded-lg flex items-center justify-center mb-4">
-                <Zap className="w-6 h-6 text-chart-2" />
-              </div>
-              <CardTitle>Real-time Pricing</CardTitle>
-              <CardDescription>
-                Dynamic pricing based on demand, availability, and resource allocation
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ul className="text-sm text-muted-foreground space-y-2">
-                <li>• Instant price calculation</li>
-                <li>• Market-based pricing</li>
-                <li>• Resource optimization</li>
-                <li>• Cost transparency</li>
-              </ul>
-            </CardContent>
-          </Card>
-
-          <Card className="linear-style-card">
-            <CardHeader>
-              <div className="w-12 h-12 bg-chart-3/20 rounded-lg flex items-center justify-center mb-4">
-                <Shield className="w-6 h-6 text-chart-3" />
-              </div>
-              <CardTitle>Secure Booking</CardTitle>
-              <CardDescription>
-                End-to-end booking flow with authentication and confirmation
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ul className="text-sm text-muted-foreground space-y-2">
-                <li>• Secure authentication</li>
-                <li>• Instant confirmation</li>
-                <li>• Usage tracking</li>
-                <li>• Billing integration</li>
-              </ul>
-            </CardContent>
-          </Card>
-        </div>
-      </section>
-
-      {/* Capabilities Section */}
-      <section className="container mx-auto px-4 py-16">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold mb-4">Available Capabilities</h2>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
-            Choose from a wide range of satellite resources and services
-          </p>
-        </div>
-        
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[
-            { name: "Earth Imaging", icon: "📸", description: "High-resolution satellite imagery", price: "$50/min" },
-            { name: "Data Downlink", icon: "📡", description: "High-speed data transmission", price: "$25/GB" },
-            { name: "Compute Cycles", icon: "💻", description: "On-board processing power", price: "$100/hour" },
-            { name: "Power Allocation", icon: "⚡", description: "Electrical power for payloads", price: "$75/hour" },
-            { name: "Hosted Payloads", icon: "🛰️", description: "Dedicated payload slots", price: "$500/day" },
-            { name: "Communication", icon: "📞", description: "Satellite communication links", price: "$30/min" },
-            { name: "Navigation", icon: "🧭", description: "GPS and positioning services", price: "$40/hour" },
-            { name: "Weather Data", icon: "🌤️", description: "Meteorological observations", price: "$60/hour" }
-          ].map((capability, index) => (
-            <Card key={index} className="linear-style-card hover:border-chart-1/50 transition-colors">
-              <CardHeader className="pb-3">
+      <div className="container mx-auto px-4 py-8">
+        <div className="grid lg:grid-cols-3 gap-8">
+          {/* Globe Visualization */}
+          <div className="lg:col-span-2">
+            <Card className="linear-style-card h-[600px]">
+              <CardHeader>
                 <div className="flex items-center justify-between">
-                  <span className="text-2xl">{capability.icon}</span>
-                  <Badge variant="secondary" className="text-xs">
-                    {capability.price}
-                  </Badge>
+                  <div>
+                    <CardTitle className="flex items-center space-x-2">
+                      <Globe className="w-5 h-5" />
+                      <span>Live Satellite Tracking</span>
+                    </CardTitle>
+                    <CardDescription>
+                      Real-time satellite positions and orbits powered by TLE data
+                    </CardDescription>
+                  </div>
+                  <div className="flex space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowOrbits(!showOrbits)}
+                      className="border-border/50"
+                    >
+                      {showOrbits ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                      Orbits
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowCoverage(!showCoverage)}
+                      className="border-border/50"
+                    >
+                      {showCoverage ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                      Coverage
+                    </Button>
+                  </div>
                 </div>
-                <CardTitle className="text-lg">{capability.name}</CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">{capability.description}</p>
+              <CardContent className="p-0">
+                <div className="h-[500px] w-full">
+                  <GlobeVisualization 
+                    satellites={satellites} 
+                    selectedSatellite={selectedSatellite}
+                  />
+                </div>
               </CardContent>
             </Card>
-          ))}
-        </div>
-      </section>
+          </div>
 
-      {/* Stats Section */}
-      <section className="container mx-auto px-4 py-16">
-        <div className="grid md:grid-cols-4 gap-8 text-center">
-          <div>
-            <div className="text-3xl font-bold text-chart-1 mb-2">150+</div>
-            <div className="text-muted-foreground">Active Satellites</div>
-          </div>
-          <div>
-            <div className="text-3xl font-bold text-chart-2 mb-2">24/7</div>
-            <div className="text-muted-foreground">Global Coverage</div>
-          </div>
-          <div>
-            <div className="text-3xl font-bold text-chart-3 mb-2">99.9%</div>
-            <div className="text-muted-foreground">Uptime SLA</div>
-          </div>
-          <div>
-            <div className="text-3xl font-bold text-chart-4 mb-2">$0.01</div>
-            <div className="text-muted-foreground">Per MB Pricing</div>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="container mx-auto px-4 py-20">
-        <Card className="linear-style-card max-w-4xl mx-auto text-center">
-          <CardHeader>
-            <CardTitle className="text-3xl mb-4">Ready to launch your space mission?</CardTitle>
-            <CardDescription className="text-lg">
-              Join thousands of organizations already using QuickSat for their satellite needs
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button size="lg" className="linear-style-button">
-                Start Free Trial
-              </Button>
-              <Button size="lg" variant="outline" className="border-border/50">
-                Contact Sales
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </section>
-
-      {/* Footer */}
-      <footer className="border-t border-border/50 py-12">
-        <div className="container mx-auto px-4">
-          <div className="grid md:grid-cols-4 gap-8">
-            <div>
-              <div className="flex items-center space-x-2 mb-4">
-                <div className="w-6 h-6 bg-primary rounded flex items-center justify-center">
-                  <Satellite className="w-4 h-4 text-primary-foreground" />
+          {/* Satellite Information Panel */}
+          <div className="space-y-6">
+            <Card className="linear-style-card">
+              <CardHeader>
+                <CardTitle>Satellite Network</CardTitle>
+                <CardDescription>
+                  {satellites.length} active NASA satellites in orbit
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {satellites.map((satellite) => (
+                    <div
+                      key={satellite.id}
+                      className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                        selectedSatellite?.id === satellite.id
+                          ? 'border-chart-1 bg-chart-1/10'
+                          : 'border-border/50 hover:border-border'
+                      }`}
+                      onClick={() => setSelectedSatellite(satellite)}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center space-x-2">
+                          <div className={`w-2 h-2 rounded-full ${getStatusColor(satellite.status)}`} />
+                          <span className="font-medium text-sm">{satellite.name}</span>
+                        </div>
+                        <Badge variant="secondary" className="text-xs">
+                          {satellite.type}
+                        </Badge>
+                      </div>
+                      <div className="text-xs text-muted-foreground space-y-1">
+                        <div className="flex justify-between">
+                          <span>Altitude:</span>
+                          <span>{satellite.altitude}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Period:</span>
+                          <span>{satellite.period}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Coverage:</span>
+                          <span>{satellite.coverage}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <span className="font-semibold">QuickSat</span>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                The future of satellite capability renting
-              </p>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Product</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><a href="#" className="hover:text-foreground transition-colors">Features</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Pricing</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">API</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Documentation</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Company</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><a href="#" className="hover:text-foreground transition-colors">About</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Blog</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Careers</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Contact</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Support</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><a href="#" className="hover:text-foreground transition-colors">Help Center</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Community</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Status</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Security</a></li>
-              </ul>
-            </div>
-          </div>
-          <div className="border-t border-border/50 mt-8 pt-8 text-center text-sm text-muted-foreground">
-            © 2024 QuickSat. All rights reserved.
+              </CardContent>
+            </Card>
+
+            {/* Selected Satellite Details */}
+            {selectedSatellite && (
+              <Card className="linear-style-card">
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Satellite className="w-5 h-5" />
+                    <span>{selectedSatellite.name}</span>
+                  </CardTitle>
+                  <CardDescription className={getTypeColor(selectedSatellite.type)}>
+                    {selectedSatellite.type} • {selectedSatellite.operator}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2 text-muted-foreground">
+                        <MapPin className="w-4 h-4" />
+                        <span>Altitude</span>
+                      </div>
+                      <div className="font-medium">{selectedSatellite.altitude}</div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2 text-muted-foreground">
+                        <Clock className="w-4 h-4" />
+                        <span>Period</span>
+                      </div>
+                      <div className="font-medium">{selectedSatellite.period}</div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2 text-muted-foreground">
+                        <Zap className="w-4 h-4" />
+                        <span>Inclination</span>
+                      </div>
+                      <div className="font-medium">{selectedSatellite.inclination}</div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2 text-muted-foreground">
+                        <Globe className="w-4 h-4" />
+                        <span>Coverage</span>
+                      </div>
+                      <div className="font-medium">{selectedSatellite.coverage}</div>
+                    </div>
+                  </div>
+                  
+                  <div className="pt-4 border-t border-border/50">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm text-muted-foreground">Status</span>
+                      <div className="flex items-center space-x-2">
+                        <div className={`w-2 h-2 rounded-full ${getStatusColor(selectedSatellite.status)}`} />
+                        <span className="text-sm font-medium capitalize">{selectedSatellite.status}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <h4 className="text-sm font-medium mb-2">Available Data Types</h4>
+                      <div className="flex flex-wrap gap-1">
+                        {selectedSatellite.dataTypes.map((dataType, index) => (
+                          <Badge key={index} variant="secondary" className="text-xs">
+                            {dataType}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <h4 className="text-sm font-medium mb-2">Data Sources</h4>
+                      <div className="space-y-1">
+                        {selectedSatellite.dataSources.map((source, index) => (
+                          <div key={index} className="flex items-center space-x-2 text-xs text-muted-foreground">
+                            <ExternalLink className="w-3 h-3" />
+                            <span>{source}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <Button className="w-full linear-style-button">
+                      Access NASA Open Data
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Network Stats */}
+            <Card className="linear-style-card">
+              <CardHeader>
+                <CardTitle>Network Statistics</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Total Satellites</span>
+                    <span className="font-medium">{satellites.length}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Active</span>
+                    <span className="font-medium text-green-400">
+                      {satellites.filter(s => s.status === 'active').length}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Open Data</span>
+                    <span className="font-medium text-green-400">
+                      {satellites.filter(s => s.openData).length}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Last Update</span>
+                    <span className="font-medium">{loading ? 'Updating...' : 'Live'}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
-      </footer>
+      </div>
     </div>
   );
 }
