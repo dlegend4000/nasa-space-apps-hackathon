@@ -10,6 +10,7 @@ import { SatelliteData } from '@/lib/satellite-data';
 interface GlobeVisualizationProps {
   satellites?: SatelliteData[];
   selectedSatellite?: SatelliteData | null;
+  centerGlobe?: boolean;
   className?: string;
 }
 
@@ -36,7 +37,7 @@ function Earth() {
 }
 
 // Camera controller for focusing on satellites
-function CameraController({ selectedSatellite }: { selectedSatellite?: SatelliteData | null }) {
+function CameraController({ selectedSatellite, centerGlobe }: { selectedSatellite?: SatelliteData | null; centerGlobe?: boolean }) {
   const { camera } = useThree();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const controlsRef = useRef<any>(null);
@@ -48,7 +49,7 @@ function CameraController({ selectedSatellite }: { selectedSatellite?: Satellite
       // Convert lat/lon/alt to 3D position
       const phi = (90 - latitude) * (Math.PI / 180);
       const theta = (longitude + 180) * (Math.PI / 180);
-      const radius = 1 + (altitude / 1000) * 0.1; // Scale altitude
+      const radius = 1 + (altitude / 1000) * 0.02; // Scale altitude - smaller factor = closer to globe
       
       const x = radius * Math.sin(phi) * Math.cos(theta);
       const y = radius * Math.cos(phi);
@@ -86,6 +87,37 @@ function CameraController({ selectedSatellite }: { selectedSatellite?: Satellite
     }
   }, [selectedSatellite, camera]);
 
+  // Handle centering and zooming into the globe
+  useEffect(() => {
+    if (centerGlobe && controlsRef.current) {
+      // Zoom into the globe with a closer camera position
+      const startPosition = camera.position.clone();
+      const startTarget = controlsRef.current.target.clone();
+      
+      const zoomedCameraPosition = new THREE.Vector3(0, 0, 2.5); // Closer to the globe
+      const defaultTarget = new THREE.Vector3(0, 0, 0);
+      
+      const duration = 1500; // 1.5 seconds
+      const startTime = Date.now();
+      
+      const animate = () => {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const easeProgress = 1 - Math.pow(1 - progress, 3); // Ease out cubic
+        
+        camera.position.lerpVectors(startPosition, zoomedCameraPosition, easeProgress);
+        controlsRef.current.target.lerpVectors(startTarget, defaultTarget, easeProgress);
+        controlsRef.current.update();
+        
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+        }
+      };
+      
+      animate();
+    }
+  }, [centerGlobe, camera]);
+
   return <OrbitControls ref={controlsRef} enablePan={true} enableZoom={true} enableRotate={true} minDistance={2} maxDistance={8} />;
 }
 
@@ -115,7 +147,7 @@ function SatelliteDot({ satellite, isSelected }: { satellite: SatelliteData, isS
       const { latitude, longitude, altitude } = satellite.position;
       const phi = (90 - latitude) * (Math.PI / 180);
       const theta = (longitude + 180) * (Math.PI / 180);
-      const radius = 1 + (altitude / 1000) * 0.1;
+      const radius = 1 + (altitude / 1000) * 0.02;
       
       return [
         radius * Math.sin(phi) * Math.cos(theta),
@@ -173,14 +205,14 @@ function GlobeScene({ satellites, selectedSatellite }: { satellites: SatelliteDa
   );
 }
 
-export default function GlobeVisualization({ satellites = [], selectedSatellite, className = "" }: GlobeVisualizationProps) {
+export default function GlobeVisualization({ satellites = [], selectedSatellite, centerGlobe, className = "" }: GlobeVisualizationProps) {
   return (
     <div className={`w-full h-full ${className}`}>
       <Canvas
         camera={{ position: [3, 3, 3], fov: 60 }}
         style={{ background: 'transparent' }}
       >
-        <CameraController selectedSatellite={selectedSatellite} />
+        <CameraController selectedSatellite={selectedSatellite} centerGlobe={centerGlobe} />
         <GlobeScene satellites={satellites} selectedSatellite={selectedSatellite} />
       </Canvas>
     </div>

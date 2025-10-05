@@ -1,17 +1,17 @@
 import axios from 'axios';
+import * as functions from 'firebase-functions';
 
 // NASA Earthdata API configuration
 const NASA_EARTHDATA_BASE_URL = 'https://cmr.earthdata.nasa.gov';
 const USGS_EARTHEXPLORER_BASE_URL = 'https://earthexplorer.usgs.gov/inventory/json';
 
-// Get environment variables from Firebase Functions config
-const getConfig = () => {
-  const functions = require('firebase-functions');
+// Get environment variables
+export const getConfig = () => {
   return {
-    nasaEarthdataToken: functions.config().nasa?.earthdata_token,
-    usgsApiKey: functions.config().usgs?.api_key,
-    googleEarthEngineApiKey: functions.config().google?.earth_engine_api_key,
-    googleCloudProjectId: functions.config().google?.cloud_project_id
+    nasaEarthdataToken: functions.config().nasa?.earthdata_token || process.env.NASA_EARTHDATA_TOKEN,
+    usgsApiKey: functions.config().usgs?.api_key || process.env.USGS_API_KEY,
+    googleEarthEngineApiKey: functions.config().google?.earth_engine_api_key || process.env.GOOGLE_EARTH_ENGINE_API_KEY,
+    googleCloudProjectId: functions.config().google?.cloud_project_id || process.env.GOOGLE_CLOUD_PROJECT_ID
   };
 };
 

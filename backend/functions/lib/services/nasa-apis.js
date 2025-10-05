@@ -1,28 +1,52 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.satelliteDataService = exports.SatelliteDataService = exports.GoogleEarthEngineAPI = exports.USGSEarthExplorerAPI = exports.NASAEarthdataAPI = void 0;
+exports.satelliteDataService = exports.SatelliteDataService = exports.GoogleEarthEngineAPI = exports.USGSEarthExplorerAPI = exports.NASAEarthdataAPI = exports.getConfig = void 0;
 const axios_1 = __importDefault(require("axios"));
+const functions = __importStar(require("firebase-functions"));
 // NASA Earthdata API configuration
 const NASA_EARTHDATA_BASE_URL = 'https://cmr.earthdata.nasa.gov';
 const USGS_EARTHEXPLORER_BASE_URL = 'https://earthexplorer.usgs.gov/inventory/json';
-// Get environment variables from Firebase Functions config
+// Get environment variables
 const getConfig = () => {
     var _a, _b, _c, _d;
-    const functions = require('firebase-functions');
     return {
-        nasaEarthdataToken: (_a = functions.config().nasa) === null || _a === void 0 ? void 0 : _a.earthdata_token,
-        usgsApiKey: (_b = functions.config().usgs) === null || _b === void 0 ? void 0 : _b.api_key,
-        googleEarthEngineApiKey: (_c = functions.config().google) === null || _c === void 0 ? void 0 : _c.earth_engine_api_key,
-        googleCloudProjectId: (_d = functions.config().google) === null || _d === void 0 ? void 0 : _d.cloud_project_id
+        nasaEarthdataToken: ((_a = functions.config().nasa) === null || _a === void 0 ? void 0 : _a.earthdata_token) || process.env.NASA_EARTHDATA_TOKEN,
+        usgsApiKey: ((_b = functions.config().usgs) === null || _b === void 0 ? void 0 : _b.api_key) || process.env.USGS_API_KEY,
+        googleEarthEngineApiKey: ((_c = functions.config().google) === null || _c === void 0 ? void 0 : _c.earth_engine_api_key) || process.env.GOOGLE_EARTH_ENGINE_API_KEY,
+        googleCloudProjectId: ((_d = functions.config().google) === null || _d === void 0 ? void 0 : _d.cloud_project_id) || process.env.GOOGLE_CLOUD_PROJECT_ID
     };
 };
+exports.getConfig = getConfig;
 // NASA Earthdata API functions
 class NASAEarthdataAPI {
     constructor() {
-        const config = getConfig();
+        const config = (0, exports.getConfig)();
         this.token = config.nasaEarthdataToken || '';
         if (!this.token) {
             console.warn('NASA_EARTHDATA_TOKEN not found in Firebase Functions config');
@@ -138,7 +162,7 @@ exports.NASAEarthdataAPI = NASAEarthdataAPI;
 // USGS EarthExplorer API functions
 class USGSEarthExplorerAPI {
     constructor() {
-        const config = getConfig();
+        const config = (0, exports.getConfig)();
         this.apiKey = config.usgsApiKey || '';
         if (!this.apiKey) {
             console.warn('USGS_API_KEY not found in Firebase Functions config');
@@ -200,7 +224,7 @@ exports.USGSEarthExplorerAPI = USGSEarthExplorerAPI;
 // Google Earth Engine API functions (placeholder)
 class GoogleEarthEngineAPI {
     constructor() {
-        const config = getConfig();
+        const config = (0, exports.getConfig)();
         this.apiKey = config.googleEarthEngineApiKey || '';
         this.projectId = config.googleCloudProjectId || '';
         if (!this.apiKey || !this.projectId) {
